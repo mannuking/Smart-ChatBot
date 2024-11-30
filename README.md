@@ -68,22 +68,6 @@ Smart ChatBot is an interactive web application powered by Streamlit and OpenAI'
 - **XML**: Extracted as plain text.
 - **JSON, CSV, TXT**: Read as plain text.
 
-## Example Project Structure
-
-```
-project/
-├── src/
-│   ├── main.py
-│   ├── utils/
-│   │   └── helper_functions.py
-│   └── models/
-│       └── example_model.py
-├── tests/
-│   └── test_main.py
-├── docs/
-│   └── README.md
-└── requirements.txt
-```
 
 ## Dependencies
 - `streamlit`
