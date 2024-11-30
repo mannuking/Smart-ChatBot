@@ -30,8 +30,8 @@ Smart ChatBot is an interactive web application powered by Streamlit and OpenAI'
 ### Setup
 1. Clone the repository:
    ```bash
-   git clone <repository_url>
-   cd <repository_folder>
+   git clone https://github.com/mannuking/Smart-ChatBot
+   cd https://github.com/mannuking/Smart-ChatBot
    ```
 2. Install required dependencies:
    ```bash
