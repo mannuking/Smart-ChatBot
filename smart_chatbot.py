@@ -14,6 +14,7 @@ import docx
 import pandas as pd
 import xml.etree.ElementTree as ET
 
+
 # Load environment variables
 load_dotenv()
 
@@ -28,6 +29,8 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
+
 
 # Mode Selection
 mode = st.sidebar.selectbox(
@@ -120,7 +123,8 @@ def get_folder_structure(prompt):
         messages=[
             {
                 "role": "system",
-                "content": "You are an experienced software architect. Design a well-organized folder structure following best practices."
+                "content": "You are an experienced software architect. Design a well-organized folder structure following best practices. "
+                "IMPORTANT: Respond ONLY with the folder structure, no explanatory text. Use proper indentation with tabs."
             },
             {"role": "user", "content": f"Design the folder structure for this project: {prompt}"},
         ],
@@ -166,22 +170,78 @@ def fix_code_errors(error_message, code, file_path):
 
 def create_project_structure(project_path, folder_structure):
     """Creates the project folder structure."""
-    for line in folder_structure.splitlines():
-        level = line.count("\t")
+    # Clean up the folder structure to remove any explanatory text
+    lines = folder_structure.strip().split('\n')
+    valid_lines = []
+    
+    for line in lines:
+        # Skip empty lines and lines that look like explanatory text
+        if line.strip() and not line.strip().startswith(('Here', 'This', 'The', 'A ', 'An ')):
+            valid_lines.append(line)
+    
+    # Process valid lines
+    for line in valid_lines:
+        line = line.rstrip()  # Remove trailing whitespace
+        if not line:
+            continue
+            
+        # Count leading tabs/spaces for directory level
+        level = 0
+        for char in line:
+            if char in ['\t', ' ']:
+                level += 1
+            else:
+                break
+        
+        # Get the folder/file name
         folder_name = line.strip()
-        os.makedirs(os.path.join(project_path, *[""] * level, folder_name), exist_ok=True)
+        if folder_name:
+            try:
+                # Create the full path
+                full_path = os.path.join(project_path, *[''] * level, folder_name)
+                # Create directory if it doesn't exist
+                os.makedirs(os.path.dirname(full_path), exist_ok=True)
+                # If it's a file (contains extension), create an empty file
+                if '.' in folder_name:
+                    open(full_path, 'a').close()
+                else:
+                    os.makedirs(full_path, exist_ok=True)
+            except Exception as e:
+                st.error(f"Error creating {folder_name}: {str(e)}")
 
 def generate_code_for_files(project_path, folder_structure, user_input, requirements):
     """Generates code for each file in the project structure."""
-    for line in folder_structure.splitlines():
-        level = line.count("\t")
+    lines = folder_structure.strip().split('\n')
+    valid_lines = [line for line in lines if line.strip() and not line.strip().startswith(('Here', 'This', 'The', 'A ', 'An '))]
+    
+    for line in valid_lines:
+        line = line.rstrip()
+        if not line or not '.' in line:  # Skip directories
+            continue
+            
+        level = 0
+        for char in line:
+            if char in ['\t', ' ']:
+                level += 1
+            else:
+                break
+        
         file_name = line.strip()
-        file_path = os.path.join(project_path, *[""] * level, file_name)
-        code_prompt = f"Project: {user_input}\nFile: {file_path}\nStructure:\n{folder_structure}\nRequirements:\n{requirements}"
-        code = get_code(code_prompt, file_path)
-        with open(file_path, "w") as f:
-            f.write(code)
-        st.code(code, language="python")
+        if file_name:
+            try:
+                file_path = os.path.join(project_path, *[''] * level, file_name)
+                code_prompt = f"Project: {user_input}\nFile: {file_path}\nStructure:\n{folder_structure}\nRequirements:\n{requirements}"
+                code = get_code(code_prompt, file_path)
+                
+                # Ensure directory exists
+                os.makedirs(os.path.dirname(file_path), exist_ok=True)
+                
+                # Write code to file
+                with open(file_path, "w", encoding='utf-8') as f:
+                    f.write(code)
+                st.code(code, language="python")
+            except Exception as e:
+                st.error(f"Error generating code for {file_name}: {str(e)}")
 
 def execute_code(project_path):
     """Executes the project code and handles errors."""
