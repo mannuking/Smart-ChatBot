@@ -44,7 +44,7 @@ Smart ChatBot is an interactive web application powered by Streamlit and OpenAI'
      ```
 4. Run the application:
    ```bash
-   streamlit run app.py
+   streamlit run smart_chatbot.py
    ```
 
 ## Usage
