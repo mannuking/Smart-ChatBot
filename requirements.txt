@@ -4,3 +4,8 @@ python-dotenv
 PyPDF2
 python-docx
 pandas
+langchain
+chromadb
+Pillow
+tiktoken
+google-api-python-client

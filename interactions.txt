@@ -1,0 +1,12 @@
+User: hey
+ChatBot: Hello! How can I assist you today?
+
+User: can you pelase tell me about the Gemini api key ?
+ChatBot: Sure! The Gemini API key is used for accessing the Gemini cryptocurrency exchange's API (Application Programming Interface) services. API keys are a way for developers to interact with the exchange programmatically, allowing them to retrieve market data, place trades, and perform various other functions. 
+
+When you create an API key on the Gemini platform, you are provided with a public key and a private key. The public key is used to identify your application when making requests to the Gemini API, while the private key is used for authentication and signing requests to ensure the security of your interactions with the exchange.
+
+It's important to keep your API keys secure and never share them with others to prevent unauthorized access to your account and funds.
+
+If you have any specific questions or need more detailed information about using the Gemini API key, feel free to ask!
+
