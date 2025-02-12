@@ -10,3 +10,84 @@ It's important to keep your API keys secure and never share them with others to 
 
 If you have any specific questions or need more detailed information about using the Gemini API key, feel free to ask!
 
+User: hi
+ChatBot: Hello! How can I assist you today?
+
+User: whats the weather today?
+ChatBot: To provide you with accurate and up-to-date weather information for today, could you please specify the location you are interested in?
+
+User: in delhi
+ChatBot: To get the current weather in Delhi, you can check the weather forecast on a reliable weather website or use a weather app on your smartphone. Some popular options for checking the weather in Delhi include websites like AccuWeather, The Weather Channel, or the weather section of search engines like Google. Just enter "Delhi weather today" in the search bar to get the latest weather updates.
+
+User: do it for me 
+ChatBot: It seems like you might be referring to a song or a specific phrase. If you need more information or context about a particular topic related to "do it for me," feel free to provide additional details so I can assist you better.
+
+User: Delhi weather today?
+ChatBot: For the most current and accurate Delhi weather information today, you can visit reputable weather websites like AccuWeather, The Weather Channel, or the India Meteorological Department's website. These sources provide real-time updates on temperature, humidity, air quality, and forecasts for Delhi. Just visit any of these websites and search for "Delhi weather today" to get the latest details.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,3 +1,158 @@
+def smart_chat_mode():
+    st.title("🤖 Smart ChatBot")
+    
+    # File upload section
+    st.sidebar.header("Document Upload")
+    file_type = st.sidebar.selectbox(
+        "Select Document Type",
+        ["None", "PDF", "Word Document", "Excel", "Text File", "XML", "CSV", "JSON", "Image"]
+    )
+    file_type_extensions = {
+        "PDF": [".pdf"],
+        "Word Document": [".doc", ".docx"],
+        "Excel": [".xls", ".xlsx"],
+        "Text File": [".txt"],
+        "XML": [".xml"],
+        "CSV": [".csv"],
+        "JSON": [".json"],
+        "Image": [".jpg", ".jpeg", ".png"]
+    }
+
+    uploaded_file = None
+    document_context = None
+
+    if file_type != "None":
+        uploaded_file = st.sidebar.file_uploader(
+            "Upload Document",
+            type=file_type_extensions.get(file_type, []),
+            key="document_uploader"
+        )
+
+        if uploaded_file:
+            document_context = process_uploaded_file(uploaded_file)
+            st.sidebar.success(f"Successfully processed {uploaded_file.name}")
+    
+    # Initialize chat history
+    if "messages" not in st.session_state:
+        st.session_state.messages = [
+            {
+                "role": "assistant",
+                "content": "Hi! I'm a smart chatbot that can help with both general questions and project generation. You can also upload documents to chat about their contents. How can I assist you today?"
+            }
+        ]
+
+    for message in st.session_state.messages:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
+
+    if prompt := st.chat_input("Ask me anything..."):
+        with st.chat_message("user"):
+            st.markdown(prompt)
+            st.session_state.messages.append({"role": "user", "content": prompt})
+
+        with st.chat_message("assistant"):
+            response_placeholder = st.empty()
+            response_placeholder.markdown("Thinking...")
+
+        try:
+            if any(keyword in prompt.lower() for keyword in ["create project", "generate project", "build project"]):
+                response_placeholder.markdown("Switching to Project Generator mode...")
+                st.session_state.messages.append({
+                    "role": "assistant",
+                    "content": "I'll help you generate a project. Switching to Project Generator mode..."
+                })
+                st.experimental_rerun()
+            
+            # Get chat response
+            context = [{"role": m["role"], "content": m["content"]} for m in st.session_state.messages[-5:]]
+            response = get_chat_response(prompt, context, document_context)
+
+            response_placeholder.markdown(response)
+            st.session_state.messages.append({
+                "role": "assistant",
+                "content": response
+            })
+
+        except Exception as e:
+            st.error(f"Error: {str(e)}")
+            error_response = "I encountered an error processing your request."
+            st.session_state.messages.append({
+                "role": "assistant",
+                "content": error_response
+            })
+
+
+def project_generator_mode():
+    """
+    Handles the Project Generator mode of the application.
+
+    This function sets up the UI for the Project Generator mode, including the project idea input,
+    project generation button, and the display of generated project plan, requirements,
+    folder structure, and code. It also handles the creation of the project directory,
+    code generation, code execution, and project download.
+    """
+    st.title("🚀 Project Generator")
+    
+    user_input = st.text_area("Enter your project idea:")
+    run_code = st.checkbox("Run the generated code")
+
+    if st.button("Generate Project"):
+        if user_input:
+            st.write("Generating project...")
+            
+            # Generate project plan
+            project_plan = get_project_plan(user_input)
+            st.header("Project Plan:")
+            st.write(project_plan)
+            
+            # Generate requirements
+            requirements = get_requirements(user_input)
+            st.header("Requirements:")
+            st.code(requirements)
+
+            # Generate folder structure
+            folder_structure = get_folder_structure(user_input)
+            st.header("Folder Structure:")
+            st.code(folder_structure)
+
+            # Setup project directory
+            project_name = "generated_project"
+            user_home_dir = pathlib.Path.home()
+            projects_dir = user_home_dir / "Downloads" / "projects"
+            projects_dir.mkdir(parents=True, exist_ok=True)
+            project_path = projects_dir / project_name
+
+            try:
+                # Create project structure
+                create_project_structure(project_path, folder_structure)
+
+                # Generate code
+                st.header("Generated Code:")
+                generate_code_for_files(project_path, folder_structure, user_input, requirements)
+
+                # Execute code if requested
+                if run_code:
+                    execute_code(project_path)
+
+                # Create download button
+                shutil.make_archive("project", "zip", project_path)
+                with open("project.zip", "rb") as f:
+                    st.download_button(
+                        "Download Project",
+                        f,
+                        "project.zip",
+                        "application/zip"
+                    )
+
+            except Exception as e:
+                st.error(f"An error occurred: {str(e)}")
+            finally:
+                # Cleanup
+                shutil.rmtree(project_path, ignore_errors=True)
+                if os.path.exists("project.zip"):
+                    os.remove("project.zip")
+
+
 import streamlit as st
 import openai
 import os
@@ -34,6 +189,8 @@ import re
 load_dotenv()
 
 print("Environment variables loaded.")
+print(f"GOOGLE_API_KEY from env: {os.environ.get('GOOGLE_API_KEY')}")
+print(f"GOOGLE_CSE_ID from env: {os.environ.get('GOOGLE_CSE_ID')}")
 
 # Configuration
 OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
@@ -43,8 +200,10 @@ print(f"API Key set in openai: {openai.api_key}")
 # Initialize Google Search API
 def google_search(query, num_results=5):
     try:
-        service = build("customsearch", "v1", developerKey=GOOGLE_API_KEY)
-        result = service.cse().list(q=query, cx=GOOGLE_CSE_ID, num=num_results).execute()
+        google_api_key = os.environ.get('GOOGLE_API_KEY')
+        print(f"GOOGLE_API_KEY inside google_search: {google_api_key}")
+        service = build("customsearch", "v1", developerKey=google_api_key)
+        result = service.cse().list(q=query, cx=os.environ.get('GOOGLE_CSE_ID'), num=num_results).execute()
         
         search_results = []
         if "items" in result:
@@ -81,8 +240,11 @@ def browse_web(url, element_id=None):
         
         driver.quit()
         return content
+    except selenium.common.exceptions.WebDriverException as e:
+        st.error(f"Selenium WebDriver error: {str(e)}")
+        return ""
     except Exception as e:
-        st.error(f"Error browsing the web: {str(e)}")
+        st.error(f"Error browsing the web: {type(e).__name__} - {str(e)}")
         return ""
 
 # Streamlit Configuration
@@ -195,8 +357,8 @@ def process_uploaded_file(uploaded_file) -> str | None:
         st.error(f"Error opening Word document: {str(e)}")
         return f"Error opening Word document: {str(e)}"
     except Exception as e:
-        st.error(f"Error processing file: {str(e)}")
-        return f"Error processing file: {str(e)}"
+        st.error(f"Error processing file: {type(e).__name__} - {str(e)}")
+        return f"Error processing file: {type(e).__name__} - {str(e)}"
 
 def setup_vector_store(documents):
     """Setup ChromaDB vector store with processed documents"""
@@ -292,8 +454,10 @@ def save_interaction(prompt, response):
     try:
         with open("interactions.txt", "a", encoding="utf-8") as f:
             f.write(f"User: {prompt}\nChatBot: {response}\n\n")
+    except IOError as e:
+        st.error(f"IOError saving interaction: {str(e)}")
     except Exception as e:
-        st.error(f"Error saving interaction: {str(e)}")
+        st.error(f"Error saving interaction: {type(e).__name__} - {str(e)}")
 
 def get_user_context():
     """Placeholder function to get user context data."""
@@ -438,7 +602,7 @@ def create_project_structure(project_path, folder_structure):
             except OSError as e:
                 st.error(f"Error creating {folder_name}: {str(e)}")
             except Exception as e:
-                st.error(f"An unexpected error occurred: {str(e)}")
+                st.error(f"An unexpected error occurred: {type(e).__name__} - {str(e)}")
 
 def generate_code_for_files(project_path: str, folder_structure: str, user_input: str, requirements: str) -> None:
     """
@@ -482,7 +646,7 @@ def generate_code_for_files(project_path: str, folder_structure: str, user_input
             except OSError as e:
                 st.error(f"Error generating code for {file_name}: {str(e)}")
             except Exception as e:
-                st.error(f"An unexpected error occurred: {str(e)}")
+                st.error(f"An unexpected error occurred: {type(e).__name__} - {str(e)}")
 
 def execute_code(project_path: str) -> None:
     """
@@ -518,192 +682,6 @@ def execute_code(project_path: str) -> None:
         st.error(f"Error executing code: {str(e)}")
     except Exception as e:
         st.error(f"An unexpected error occurred: {traceback.format_exc()}")
-
-def get_chat_response(prompt, context=[], document_context=None):
-    """Gets chat response from OpenAI."""
-    messages = [
-        {
-            "role": "system",
-            "content": "You are a helpful AI assistant that can both chat and help with project generation. "
-            "You can provide information, answer questions, and help users with their projects."
-        }
-    ]
-    
-    # Add document context if available
-    if document_context:
-        messages.append({
-            "role": "system",
-            "content": f"Context from uploaded document:\n{document_context}"
-        })
-    
-    # Add context from previous messages
-    messages.extend(context)
-    
-    # Add user's prompt
-    messages.append({"role": "user", "content": prompt})
-    
-    response = openai.chat.completions.create(
-        model="gpt-3.5-turbo",
-        messages=messages,
-        max_tokens=2000,
-    )
-    return response.choices[0].message.content
-
-# --- Main Application Logic ---
-if mode == "Smart Chat":
-    st.title("🤖 Smart ChatBot")
-    
-    # File upload section
-    st.sidebar.header("Document Upload")
-    file_type = st.sidebar.selectbox(
-        "Select Document Type",
-        ["None", "PDF", "Word Document", "Excel", "Text File", "XML", "CSV", "JSON", "Image"]
-    )
-
-    file_type_extensions = {
-        "PDF": [".pdf"],
-        "Word Document": [".doc", ".docx"],
-        "Excel": [".xls", ".xlsx"],
-        "Text File": [".txt"],
-        "XML": [".xml"],
-        "CSV": [".csv"],
-        "JSON": [".json"],
-        "Image": [".jpg", ".jpeg", ".png"]
-    }
-
-    uploaded_file = None
-    document_context = None
-
-    if file_type != "None":
-        uploaded_file = st.sidebar.file_uploader(
-            "Upload Document",
-            type=file_type_extensions.get(file_type, []),
-            key="document_uploader"
-        )
-
-        if uploaded_file:
-            document_context = process_uploaded_file(uploaded_file)
-            st.sidebar.success(f"Successfully processed {uploaded_file.name}")
-    
-    # Initialize chat history
-    if "messages" not in st.session_state:
-        st.session_state.messages = [
-            {
-                "role": "assistant",
-                "content": "Hi! I'm a smart chatbot that can help with both general questions and project generation. You can also upload documents to chat about their contents. How can I assist you today?"
-            }
-        ]
-
-    for message in st.session_state.messages:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
-
-    if prompt := st.chat_input("Ask me anything..."):
-        with st.chat_message("user"):
-            st.markdown(prompt)
-            st.session_state.messages.append({"role": "user", "content": prompt})
-
-        with st.chat_message("assistant"):
-            response_placeholder = st.empty()
-            response_placeholder.markdown("Thinking...")
-
-            try:
-                if any(keyword in prompt.lower() for keyword in ["create project", "generate project", "build project"]):
-                    response_placeholder.markdown("Switching to Project Generator mode...")
-                    st.session_state.messages.append({
-                        "role": "assistant",
-                        "content": "I'll help you generate a project. Switching to Project Generator mode..."
-                    })
-                    st.experimental_rerun()
-                
-                # Get chat response
-                context = [{"role": m["role"], "content": m["content"]} for m in st.session_state.messages[-5:]]
-                response = get_chat_response(prompt, context, document_context)
-
-                response_placeholder.markdown(response)
-                st.session_state.messages.append({
-                    "role": "assistant",
-                    "content": response
-                })
-
-            except Exception as e:
-                st.error(f"Error: {str(e)}")
-                error_response = "I encountered an error processing your request."
-                st.session_state.messages.append({
-                    "role": "assistant",
-                    "content": error_response
-                })
-
-
-def project_generator_mode():
-    """
-    Handles the Project Generator mode of the application.
-
-    This function sets up the UI for the Project Generator mode, including the project idea input,
-    project generation button, and the display of generated project plan, requirements,
-    folder structure, and code. It also handles the creation of the project directory,
-    code generation, code execution, and project download.
-    """
-    st.title("🚀 Project Generator")
-    
-    user_input = st.text_area("Enter your project idea:")
-    run_code = st.checkbox("Run the generated code")
-
-    if st.button("Generate Project"):
-        if user_input:
-            st.write("Generating project...")
-            
-            # Generate project plan
-            project_plan = get_project_plan(user_input)
-            st.header("Project Plan:")
-            st.write(project_plan)
-            
-            # Generate requirements
-            requirements = get_requirements(user_input)
-            st.header("Requirements:")
-            st.code(requirements)
-
-            # Generate folder structure
-            folder_structure = get_folder_structure(user_input)
-            st.header("Folder Structure:")
-            st.code(folder_structure)
-
-            # Setup project directory
-            project_name = "generated_project"
-            user_home_dir = pathlib.Path.home()
-            projects_dir = user_home_dir / "Downloads" / "projects"
-            projects_dir.mkdir(parents=True, exist_ok=True)
-            project_path = projects_dir / project_name
-
-            try:
-                # Create project structure
-                create_project_structure(project_path, folder_structure)
-
-                # Generate code
-                st.header("Generated Code:")
-                generate_code_for_files(project_path, folder_structure, user_input, requirements)
-
-                # Execute code if requested
-                if run_code:
-                    execute_code(project_path)
-
-                # Create download button
-                shutil.make_archive("project", "zip", project_path)
-                with open("project.zip", "rb") as f:
-                    st.download_button(
-                        "Download Project",
-                        f,
-                        "project.zip",
-                        "application/zip"
-                    )
-
-            except Exception as e:
-                st.error(f"An error occurred: {str(e)}")
-            finally:
-                # Cleanup
-                shutil.rmtree(project_path, ignore_errors=True)
-                if os.path.exists("project.zip"):
-                    os.remove("project.zip")
 
 
 # --- Main Application Logic ---
